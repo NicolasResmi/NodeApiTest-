@@ -49,20 +49,6 @@ passport.deserializeUser(function(id, cb) {
 // View engine (EJS)
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
-// View engine (VUE / Axios)
-var fs = require('fs'); // this engine requires the fs module
-app.engine('vue', function (filePath, options, callback) { // define the template engine
-  fs.readFile(filePath, function (err, content) {
-    if (err) return callback(new Error(err));
-    // this is an extremely simple template engine
-    var rendered = content.toString().replace('#title#', ''+ options.title +'')
-    .replace('#message#', ''+ options.message +'');
-    return callback(null, rendered);
-  });
-});
-
-app.set('views', __dirname + '/views');
-app.set('view engine', 'vue');
 
 // Logging - Parsing - Sessions handler ?
 app.use(require('morgan')('combined'));
