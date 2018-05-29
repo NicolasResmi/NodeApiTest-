@@ -27,12 +27,12 @@ jwtOptions.secretOrKey = 'secretKey';
 var users = [
     {
         id: 1,
-        name: 'nico',
+        username: 'nico',
         password: 'test'
     },
     {
         id: 2,
-        name: 'cyrille',
+        username: 'cyrille',
         password :'test'
     }
 ];
@@ -65,12 +65,12 @@ app.get("/", function(req, res) {
 });
 
 app.post("/login", function(req, res) {
-    if (req.body.name && req.body.password) {
-        var name = req.body.name;
+    if (req.body.username && req.body.password) {
+        var username = req.body.username;
         var password = req.body.password;
     }
     //database call :
-    var user = users[_.findIndex(users, {name:name})];
+    var user = users[_.findIndex(users, {username:username})];
     if(!user){
         res.status(401).json({message:"L'utilisateur n'a pas été trouvé"});
     }
@@ -99,7 +99,7 @@ app.get("/secret", passport.authenticate('jwt', {session:false}), function(req, 
 
 app.listen(PORT, function () { // 3000 = nom du port sur lequel le serveur va être lancé
     console.log(`Example app listening on port ${PORT}!`)
-})
+});
 
 
 
