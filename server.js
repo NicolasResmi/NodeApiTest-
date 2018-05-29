@@ -1,9 +1,17 @@
 const PORT = process.env.PORT || 3000; // process utilisé par l'application nodeJS.
 
+const _ = require('lodash');
 const express = require('express'); // appelle express dans une variable
 const app = express(); // équivaut à une instance de express
+const bodyParser = require("body-parser");
+const jwt = require('jsonwebtoken');
+
 const passport = require('passport');
 const Strategy = require('passport-local').Strategy;
+const passportJWT = require('passport-jwt');
+
+const ExtractJwt = passportJWT.ExtractJwt;
+const JwtStrategy = passportJWT.Strategy;
 
 const knex = require('knex');
 /* const db = knex({
@@ -12,87 +20,77 @@ const knex = require('knex');
 }) */
 const db = require('./db');
 
-/* app.get('/', function (req, res) { // fonction 1 : .get est la méthode (get, post, update, delete)
-    // dans le controleur il y a deux paramètres : req et res, req est l'objet de la request (adress ip, navigateur...), res est l'objet de la response (qu'allons-nous renvoyer ?)
-  res.json({
-      Hello: "World!"
-    })
-}) */
+var jwtOptions = {}
+jwtOptions.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
+jwtOptions.secretOrKey = 'secretKey';
 
-app.get('/users', require('./routes/getUsers'));
-app.get('/users/:username', require('./routes/getUsersByUsername'));
-// app.get('/passport', require('./routes/passport'));
+var users = [
+    {
+        id: 1,
+        name: 'nico',
+        password: 'test'
+    },
+    {
+        id: 2,
+        name: 'cyrille',
+        password :'test'
+    }
+];
 
-// Local strategy with 'verify'
-passport.use(new Strategy(
-    function(username, password, cb) {
-      db.users.findByUsername(username, function(err, user) {
-        if (err) { return cb(err); }
-        if (!user) { return cb(null, false); }
-        if (user.password != password) { return cb(null, false); }
-        return cb(null, user);
-    });
-}));
-  
-// Restore authentification state accross HTTP
-passport.serializeUser(function(user, cb) {
-    cb(null, user.id);
+var strategy = new JwtStrategy(jwtOptions, function(jwt_payload, next) {
+    console.log('payload received', jwt_payload);
+    //database call:
+    var user = users[_.findIndex(users, {id: jwt_payload.id})];
+    if (user) {
+        next(null, user);
+    } else {
+        next(null, false);
+    }
 });
-  
-passport.deserializeUser(function(id, cb) {
-    db.users.findById(id, function (err, user) {
-        if (err) { return cb(err); }
-        cb(null, user);
-    });
-});
+passport.use(strategy);
 
-// View engine (EJS)
-app.set('views', __dirname + '/views');
-app.set('view engine', 'ejs');
-
-// Logging - Parsing - Sessions handler ?
-app.use(require('morgan')('combined'));
-app.use(require('cookie-parser')());
-app.use(require('body-parser').urlencoded({ extended: true }));
-app.use(require('express-session')({ secret: 'keyboard cat', resave: false, saveUninitialized: false }));
-
-// Initialize Passport
 app.use(passport.initialize());
-app.use(passport.session());
+
+//parse application for easier testing
+app.use(bodyParser.urlencoded({
+    extended:true
+}));
+
+//parse application/json
+app.use(bodyParser.json())
 
 // Routes
-app.get('/',
-    function(req, res) {
-        res.render('home', {user: req.user});
-    }
-);
+app.get("/", function(req, res) {
+    res.json({message: "Express is up!"});
+});
 
-app.get('/login',
-    function(req, res) {
-        res.render('login');
+app.post("/login", function(req, res) {
+    if (req.body.name && req.body.password) {
+        var name = req.body.name;
+        var password = req.body.password;
     }
-);
-
-app.post('/login',
-    passport.authenticate('local', { failureRedirect: '/login'}),
-    function(req, res) {
-        res.redirect('/');
+    //database call :
+    var user = users[_.findIndex(users, {name:name})];
+    if(!user){
+        res.status(401).json({message:"L'utilisateur n'a pas été trouvé"});
     }
-);
 
-app.get('/logout',
-    function(req, res) {
-        req.logout();
-        res.redirect('/');
+    if (user.password === req.body.password) {
+        // Now we use the ID to identify the user
+        var payload = {id: user.id};
+        var token = jwt.sign(payload, jwtOptions.secretOrKey);
+        res.json({message:"Ok", token:token});
+    } else {
+        res.status(401).json({message:"Le mot de passe ne correspond pas"});
     }
-);
+});
 
-app.get('/profile',
-    require('connect-ensure-login').ensureLoggedIn(),
-    function(req, res){
-        res.render('profile', { user: req.user });
-  }
-);
+app.get("/secret", passport.authenticate('jwt', {session:false}), function(req, res){
+    res.json("Vous êtes connecté, sans ça vous ne pourriez pas voir ce message."); 
+});
+
+
+
 
 
 
@@ -101,4 +99,12 @@ app.get('/profile',
 
 app.listen(PORT, function () { // 3000 = nom du port sur lequel le serveur va être lancé
     console.log(`Example app listening on port ${PORT}!`)
-  })
+})
+
+
+
+
+// Routes
+// app.get('/users', require('./routes/getUsers'));
+// app.get('/users/:username', require('./routes/getUsersByUsername'));
+// // app.get('/passport', require('./routes/passport'));
